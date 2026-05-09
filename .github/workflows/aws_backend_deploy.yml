@@ -1,0 +1,46 @@
+name: AWS Backend Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install AWS SAM CLI
+        run: pip install aws-sam-cli
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/ShadowTraceGitHubActionsRole
+          aws-region: us-east-1
+
+      - name: Validate templates
+        working-directory: backend/infra
+        run: sam validate -t shadowtrace_full_stack.yaml
+
+      - name: Deploy stack
+        working-directory: backend/infra
+        run: |
+          sam deploy \
+            --template-file shadowtrace_full_stack.yaml \
+            --stack-name shadowtrace-backend \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --resolve-s3 \
+            --no-fail-on-empty-changeset

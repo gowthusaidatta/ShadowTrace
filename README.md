@@ -1,3 +1,30 @@
+# ShadowTrace
+
+ShadowTrace – Intelligent Monitoring and Smart Assistant System.
+
+This repository contains the Flutter mobile app, AWS serverless backend skeleton, Amazon Location Service integration path, Firebase messaging setup, SOS handling, AI assistant, and deployment/security guidance.
+
+Quick start:
+1. Copy `.env.example` to `.env` and fill keys.
+2. Add Firebase config files to Android and iOS.
+3. Run the app with Flutter after installing dependencies.
+
+Cognito setup values:
+- Callback URL: `shadowtrace://callback`
+- Sign-out URL: `shadowtrace://logout`
+- Redirect scheme: `shadowtrace`
+- OAuth scopes: `openid profile email phone`
+
+Documentation:
+- `backend/README.md`
+- `backend/dynamodb_schema.md`
+- `DEPLOYMENT.md`
+- `SECURITY.md`
+
+Backend surface:
+- Lambda handlers under `backend/lambda/`
+- CloudFormation templates under `backend/infra/`
+
 # SafeAssist (shadowtrace)
 
 Kotlin Android implementation of an intelligent monitoring and smart assistant system focused on personal safety.

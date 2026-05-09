@@ -1,0 +1,53 @@
+{
+  "StartAt": "SendNotification",
+  "States": {
+    "SendNotification": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:region:account:function:sendPushNotification",
+      "Next": "WaitForUserResponse"
+    },
+    "WaitForUserResponse": {
+      "Type": "Wait",
+      "Seconds": 30,
+      "Next": "CheckResponse"
+    },
+    "CheckResponse": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:region:account:function:checkAlertResponse",
+      "Next": "ResponseChoice"
+    },
+    "ResponseChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.status",
+          "StringEquals": "RESPONDED",
+          "Next": "EndWorkflow"
+        },
+        {
+          "Variable": "$.retryCount",
+          "NumericLessThan": 3,
+          "Next": "IncrementRetry"
+        }
+      ],
+      "Default": "EscalateToGuardian"
+    },
+    "IncrementRetry": {
+      "Type": "Pass",
+      "Parameters": {
+        "retryCount.$": "$.retryCount + 1",
+        "alertId.$": "$.alertId",
+        "userId.$": "$.userId"
+      },
+      "Next": "SendNotification"
+    },
+    "EscalateToGuardian": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:region:account:function:escalateToGuardian",
+      "End": true
+    },
+    "EndWorkflow": {
+      "Type": "Succeed"
+    }
+  }
+}

@@ -1,0 +1,113 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'ShadowTrace full-stack minimal CloudFormation template (skeleton)'
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: dev
+
+Resources:
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName:
+        Fn::Sub: 'ShadowTrace-Users-${EnvironmentName}'
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  IncidentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName:
+        Fn::Sub: 'ShadowTrace-Incidents-${EnvironmentName}'
+      AttributeDefinitions:
+        - AttributeName: incidentId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: incidentId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: userId-index
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  DeviceTokensTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName:
+        Fn::Sub: 'ShadowTrace-DeviceTokens-${EnvironmentName}'
+      AttributeDefinitions:
+        - AttributeName: token
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: token
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: userId-index
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  ShadowTraceSnsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName:
+        Fn::Sub: 'ShadowTrace-Alerts-${EnvironmentName}'
+
+  SosLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: ShadowTraceLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:GetItem
+                Resource:
+                  Fn::Sub: 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/ShadowTrace-*'
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: '*'
+
+Outputs:
+  UsersTableName:
+    Value:
+      Ref: UsersTable
+  IncidentsTableName:
+    Value:
+      Ref: IncidentsTable
+  DeviceTokensTableName:
+    Value:
+      Ref: DeviceTokensTable
+  AlertTopicArn:
+    Value:
+      Ref: ShadowTraceSnsTopic
