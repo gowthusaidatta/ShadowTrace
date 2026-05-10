@@ -1,3 +1,40 @@
+# ShadowTrace Backend - AWS Location ingest
+
+This folder contains a minimal AWS SAM CloudFormation template and a Lambda ingest function to accept device GPS pings and forward them to Amazon Location Service.
+
+Files:
+- `infrastructure/location_stack.yaml` - SAM template to create DynamoDB table, SNS topic, and a Lambda function with a POST `/ingest` endpoint.
+- `lambdas/location_ingest.py` - Lambda handler (same logic is inlined in the SAM template for quick deploy).
+
+Quick deploy (requires AWS SAM CLI):
+
+1. Install and configure AWS CLI and SAM CLI, ensure `aws` is authenticated.
+
+2. From this folder run:
+
+```bash
+cd backend/infrastructure
+sam build
+sam deploy --guided
+```
+
+3. During guided deploy provide a stack name and accept the defaults. After deploy, note the API endpoint printed by SAM and configure your Flutter app to POST device pings to that URL.
+
+Example payload (POST /ingest):
+
+```json
+{
+  "deviceId": "device-123",
+  "lat": 37.7749,
+  "lon": -122.4194,
+  "ts": "2026-05-10T10:00:00Z"
+}
+```
+
+Next steps:
+- Wire Flutter background telemetry to POST to the ingest endpoint.
+- Add Cognito authorizer or API key for production.
+- Create Step Functions and escalation Lambda based on `device_positions` DynamoDB table.
 # Backend Setup (AWS Serverless)
 
 This folder contains a skeleton for AWS serverless resources used by ShadowTrace.

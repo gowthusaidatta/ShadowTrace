@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:location/location.dart';
+import '../services/location_service.dart';
 import '../services/aws_location_service.dart';
 
 class LocationState {
@@ -14,7 +14,7 @@ final trackingProvider = StateNotifierProvider<TrackingNotifier, LocationState?>
 
 class TrackingNotifier extends StateNotifier<LocationState?> {
   Timer? _timer;
-  final Location _location = Location();
+  final LocationService _locationService = LocationService();
   final AwsLocationService _aws = AwsLocationService(apiBase: const String.fromEnvironment('AWS_API_GATEWAY_URL', defaultValue: ''));
   TrackingNotifier(): super(null);
 
@@ -30,12 +30,15 @@ class TrackingNotifier extends StateNotifier<LocationState?> {
 
   Future<void> _updateOnce() async {
     try {
-      final locData = await _location.getLocation();
-      if (locData.latitude != null && locData.longitude != null) {
-        state = LocationState(locData.latitude!, locData.longitude!, DateTime.now());
-        // push to backend tracker
-        await _aws.putTrackerPosition(const String.fromEnvironment('AWS_LOCATION_TRACKER_NAME', defaultValue: ''), 'device-1', locData.latitude!, locData.longitude!);
-      }
+      final locData = await _locationService.getCurrentPosition();
+      state = LocationState(locData.latitude, locData.longitude, DateTime.now());
+      // push to backend tracker
+      await _aws.putTrackerPosition(
+        const String.fromEnvironment('AWS_LOCATION_TRACKER_NAME', defaultValue: ''),
+        'device-1',
+        locData.latitude,
+        locData.longitude,
+      );
     } catch (e) {
       // ignore location errors
     }

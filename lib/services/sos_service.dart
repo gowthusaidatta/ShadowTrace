@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:torch_light/torch_light.dart';
+// import 'package:torch_light/torch_light.dart';  // Removed: Kotlin compatibility issue
 import 'notification_service.dart';
 
 class SosService {
@@ -18,8 +18,8 @@ class SosService {
       // ignore missing asset
     }
 
-    // Flashlight blinking
-    _blinkFlashlight();
+    // Flashlight blinking (disabled due to torch_light plugin removal)
+    // _blinkFlashlight();
 
     // Show local full-screen notification
     await NotificationService().showLocalSosAlert(title: 'SOS Activated', body: 'Live location is being shared');
@@ -35,6 +35,7 @@ class SosService {
     }
   }
 
+  /*
   Future<void> _blinkFlashlight() async {
     Timer.periodic(const Duration(milliseconds: 600), (timer) async {
       try {
@@ -48,9 +49,10 @@ class SosService {
       }
     });
   }
+  */
 
   Future<void> stopSos() async {
     await _player.stop();
-    try { await TorchLight.disableTorch(); } catch (e) {}
+    // Flashlight disable removed with torch_light plugin
   }
 }

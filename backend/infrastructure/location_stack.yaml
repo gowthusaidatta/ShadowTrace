@@ -1,0 +1,134 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: ShadowTrace - AWS Location Service + ingest pipeline (SAM)
+
+Parameters:
+  TrackerNameParam:
+    Type: String
+    Default: shadowtrace-tracker
+
+Resources:
+  DevicePositionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-device-positions"
+      AttributeDefinitions:
+        - AttributeName: deviceId
+          AttributeType: S
+        - AttributeName: ts
+          AttributeType: S
+      KeySchema:
+        - AttributeName: deviceId
+          KeyType: HASH
+        - AttributeName: ts
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  AlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${AWS::StackName}-alerts"
+
+  IngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-location-ingest"
+      Runtime: python3.9
+      Handler: location_ingest.lambda_handler
+      InlineCode: |
+        import os
+        import json
+        import boto3
+        from datetime import datetime
+
+        dynamodb = boto3.resource('dynamodb')
+        location = boto3.client('location')
+        sns = boto3.client('sns')
+
+        TABLE_NAME = os.environ.get('DEVICE_TABLE')
+        TRACKER = os.environ.get('TRACKER_NAME')
+        TOPIC_ARN = os.environ.get('ALERTS_TOPIC_ARN')
+
+        def lambda_handler(event, context):
+            body = event.get('body') if isinstance(event, dict) else None
+            if body and isinstance(body, str):
+                data = json.loads(body)
+            else:
+                data = event if isinstance(event, dict) else {}
+
+            device_id = data.get('deviceId')
+            lat = data.get('lat')
+            lon = data.get('lon')
+            ts = data.get('ts') or datetime.utcnow().isoformat()
+
+            if not (device_id and lat and lon):
+                return { 'statusCode': 400, 'body': json.dumps({'error':'missing deviceId/lat/lon'}) }
+
+            try:
+                location.batch_update_device_position(
+                    TrackerName=TRACKER,
+                    Updates=[{
+                        'DeviceId': str(device_id),
+                        'Position': [float(lon), float(lat)],
+                        'SampleTime': ts
+                    }]
+                )
+            except Exception as e:
+                print('Location API error', e)
+
+            try:
+                table = dynamodb.Table(TABLE_NAME)
+                table.put_item(Item={
+                    'deviceId': str(device_id),
+                    'ts': str(ts),
+                    'lat': str(lat),
+                    'lon': str(lon)
+                })
+            except Exception as e:
+                print('DynamoDB error', e)
+
+            # simple alert example (no-op unless configured)
+            try:
+                if TOPIC_ARN:
+                    sns.publish(TopicArn=TOPIC_ARN, Message=json.dumps({'deviceId':device_id,'lat':lat,'lon':lon,'ts':ts}))
+            except Exception as e:
+                print('SNS publish error', e)
+
+            return { 'statusCode': 200, 'body': json.dumps({'ok': True}) }
+      Environment:
+        Variables:
+          TRACKER_NAME: !Ref TrackerNameParam
+          DEVICE_TABLE: !Ref DevicePositionsTable
+          ALERTS_TOPIC_ARN: !Ref AlertsTopic
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - location:BatchUpdateDevicePosition
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource: !GetAtt DevicePositionsTable.Arn
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref AlertsTopic
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: arn:aws:logs:*:*:*
+      Events:
+        IngestApi:
+          Type: Api
+          Properties:
+            Path: /ingest
+            Method: post
+
+Outputs:
+  ApiEndpoint:
+    Description: "API Gateway endpoint for ingest"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/ingest"

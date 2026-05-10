@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import '../services/openai_service.dart';
 
 class AiAssistantScreen extends StatefulWidget {
   const AiAssistantScreen({super.key});
 
   @override
-  State<AiAssistantScreen> createState() => _AiAssistantScreenState();
+  State<AiAssistantScreenState> createState() => _AiAssistantScreenState();
 }
 
 class _AiAssistantScreenState extends State<AiAssistantScreen> {
@@ -15,7 +14,6 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   final List<Map<String, String>> _messages = [
     {'role': 'system', 'content': 'You are ShadowTrace AI assistant. Provide concise, safety-focused advice.'},
   ];
-  final FlutterTts _tts = FlutterTts();
   late final OpenAiService _openAi;
   bool _loading = false;
 
@@ -36,7 +34,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     try {
       final reply = await _openAi.sendMessage(_messages);
       setState(() => _messages.add({'role': 'assistant', 'content': reply}));
-      await _tts.speak(reply);
+      // TODO: Add text-to-speech when flutter_tts available
     } catch (e) {
       setState(() => _messages.add({'role': 'assistant', 'content': 'AI service error: $e'}));
     } finally {

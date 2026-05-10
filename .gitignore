@@ -6,3 +6,30 @@ build
 
 # Ignore Kotlin plugin data
 .kotlin
+*.hprof
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+/.packages
+/.pub-cache
+pubspec.lock
+
+# Build artifacts
+build/
+**/build/
+android/.gradle/
+ios/Flutter/Flutter.framework
+ios/Pods/
+
+# Editor files
+.idea/
+.vscode/
+
+# Misc
+*.iml
+*.log
+*.tmp
+build_output*.txt
+build_final*.txt
